@@ -6,48 +6,63 @@ import openai
 app = Flask(__name__)
 CORS(app)
 
-openai.api_key = os.getenv('OPENAI_API_KEY')
+# Check OpenAI API key in env vars
+openai_api_key = os.getenv("OPENAI_API_KEY")
+if not openai_api_key:
+    raise Exception("OPENAI_API_KEY environment variable not set")
+openai.api_key = openai_api_key
 
-def extract_personal_info_short(text):
+@app.route('/')
+def home():
+    return "API is live"
+
+@app.route('/extract', methods=['POST'])
+def extract():
+    data = request.json
+    text = data.get('text', '').strip()
+    if not text:
+        return jsonify({"error": "No text provided"}), 400
+
+    # Prompt om alleen de gewenste info zo kort mogelijk te extraheren, met prefix 'kl '
     prompt = f"""
-    Lees onderstaande tekst en haal alleen de volgende persoonlijke info eruit: 
-    naam, leeftijd, werk, gezin (zoals kinderen en familie), woonplaats, hobby's, 
-    gezondheid, relatie status, woonsituatie, huisdieren, seksuele voorkeuren, en 
-    wat de persoon gaat doen vandaag of in de toekomst.
+Je krijgt een tekst over een persoon. Haal alleen deze informatie eruit:
+- naam
+- leeftijd
+- familie/gezin (zoals kinderen, partner)
+- woonplaats
+- werk
+- hobby's
+- seksuele voorkeur
+- relatiestatus
+- woonsituatie
+- huisdieren
+- gezondheid
+- wat die persoon gaat doen die dag of in de toekomst
 
-    Geef dit kort en bondig in één regel, zonder hele zinnen. Gebruik alleen woorden, 
-    scheid met komma's, en begin met 'kl '.
+Schrijf alles zo kort mogelijk in één zin, met komma's tussen, zonder extra uitleg, met als prefix 'kl '. Gebruik gewone Nederlandse woorden, en let op fouten.
 
-    Tekst:
-    {text}
+Voorbeeld output:
+kl Jan, 35 jaar, woont in Utrecht, werkt in supermarkt, 2 kids, hobby fietsen, hetero, getrouwd, woont in huurhuis, kat, gezond, gaat naar school
 
-    Voorbeeld output:
-    kl jan, 35 jaar, werkt in supermarkt, 2 kids, vrouw, woont amsterdam, hobby gitaar, gezond, hetero, single, huis met tuin, hond, gaat naar feestje
-    """
+Tekst:
+\"\"\"{text}\"\"\"
+"""
 
     try:
         response = openai.ChatCompletion.create(
             model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": "Je bent een info-extractor die persoonlijke info kort samenvat."},
-                {"role": "user", "content": prompt}
-            ],
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.3,
             max_tokens=150,
-            temperature=0.2,
         )
-        return response.choices[0].message.content.strip()
+        antwoord = response['choices'][0]['message']['content'].strip()
+        return jsonify({"result": antwoord})
+
     except Exception as e:
-        return f"kl fout bij verwerken: {str(e)}"
+        return jsonify({"error": str(e)}), 500
 
-@app.route('/extract', methods=['POST'])
-def extract():
-    data = request.json or {}
-    text = data.get('text', '').strip()
-    if not text:
-        return jsonify({'result': 'kl geen tekst ontvangen'}), 400
-    result = extract_personal_info_short(text)
-    return jsonify({'result': result})
 
-if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port)
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
+
