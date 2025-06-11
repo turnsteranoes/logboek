@@ -1,30 +1,18 @@
 from flask import Flask, request, jsonify
-from openai import OpenAI
-import os
 from flask_cors import CORS
+import os
 
 app = Flask(__name__)
-CORS(app)
+CORS(app)  # Zorgt dat je frontend van andere origins ook mag verbinden
 
-# OpenAI client initialiseren met API key uit environment variable
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
-@app.route("/chat", methods=["POST"])
-def chat():
+@app.route('/extract', methods=['POST'])
+def extract():
     data = request.json
-    messages = data.get("messages")
-    if not messages:
-        return jsonify({"error": "No messages provided"}), 400
+    text = data.get('text', '')
+    # Hier kun je je AI verwerking doen, voor nu geven we alleen terug met 'kl ' prefix
+    result = f"kl {text}"
+    return jsonify({'result': result})
 
-    try:
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=messages
-        )
-        return jsonify(response)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-if __name__ == "__main__":
-    # App draaien op poort 5000 en alle interfaces openzetten
-    app.run(host="0.0.0.0", port=5000)
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
