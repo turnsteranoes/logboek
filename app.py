@@ -3,7 +3,11 @@ from flask_cors import CORS
 import os
 
 app = Flask(__name__)
-CORS(app)  # Zorgt dat je frontend van andere origins ook mag verbinden
+CORS(app)
+
+@app.route('/', methods=['GET'])
+def home():
+    return "Logboek API is live!"
 
 @app.route('/extract', methods=['POST'])
 def extract():
