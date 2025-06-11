@@ -1,20 +1,12 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+from openai import OpenAI
 import os
-import openai
 
 app = Flask(__name__)
-CORS(app)
+CORS(app)  # Sta CORS toe voor frontend
 
-# Check OpenAI API key in env vars
-openai_api_key = os.getenv("OPENAI_API_KEY")
-if not openai_api_key:
-    raise Exception("OPENAI_API_KEY environment variable not set")
-openai.api_key = openai_api_key
-
-@app.route('/')
-def home():
-    return "API is live"
+client = OpenAI()  # OpenAI client initialiseren (API key via env variabele OPENAI_API_KEY)
 
 @app.route('/extract', methods=['POST'])
 def extract():
@@ -23,7 +15,6 @@ def extract():
     if not text:
         return jsonify({"error": "No text provided"}), 400
 
-    # Prompt om alleen de gewenste info zo kort mogelijk te extraheren, met prefix 'kl '
     prompt = f"""
 Je krijgt een tekst over een persoon. Haal alleen deze informatie eruit:
 - naam
@@ -49,20 +40,19 @@ Tekst:
 """
 
     try:
-        response = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.3,
             max_tokens=150,
         )
-        antwoord = response['choices'][0]['message']['content'].strip()
+        antwoord = response.choices[0].message.content.strip()
         return jsonify({"result": antwoord})
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
 
